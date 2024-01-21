@@ -1,35 +1,53 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+const POSTS = [
+  { id: 1, title: "Post 1" },
+  { id: 2, title: "Post 2" },
+];
 
 function App() {
-  const [count, setCount] = useState(0)
+  const wait = (duration: number) => {
+    return new Promise((resolve) => setTimeout(resolve, duration));
+  };
+
+  const queryClient = useQueryClient();
+
+  //We are using the useQuery function to query the data...
+  const postsQuery = useQuery({
+    queryKey: ["posts"], // Naming the query
+    queryFn: () => wait(1000).then(() => [...POSTS]),
+  });
+
+  const newPostsMutation = useMutation({
+    mutationFn: (title: string) => {
+      return wait(1000).then(() =>
+        POSTS.push({ id: Math.floor(Math.random()), title })
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["posts"]); // Not sure why this is giving me an error but it seems to work!
+    },
+  });
+
+  // You can do different things with modifiers here:
+  if (postsQuery.isLoading) return <h2>Loading...</h2>;
+  if (postsQuery.isError) {
+    return <pre>{JSON.stringify(postsQuery.error)}</pre>;
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div>
+      {postsQuery?.data?.map((post) => (
+        <div key={post.id}>{post.title}</div>
+      ))}
+      <button
+        disabled={newPostsMutation.isPending}
+        onClick={() => newPostsMutation.mutate("New post")}
+      >
+        Add Post
+      </button>
+    </div>
+  );
 }
 
-export default App
+export default App;
